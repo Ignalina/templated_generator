@@ -41,7 +41,7 @@ func main() {
 		KafkaRender = "KAFKARENDER"
 		FileRender  = "FILERENDER"
 	)
-	renderMode := KafkaRender
+	renderMode := FileRender
 	var t = template.Must(template.New("").ParseFiles("triv.tmpl"))
 
 	const cpuCores int = 24
@@ -105,7 +105,7 @@ func main() {
 	var wgCalc sync.WaitGroup
 
 	for m := 0; m < len(yearDistribution); m++ {
-		trans := yearDistribution[m].MonadInput.MiljonerTransaktioner * 1000000
+		trans := yearDistribution[m].MonadInput.MiljonerTransaktioner * 1000
 		sum := yearDistribution[m].MonadInput.MiljonerSumma
 
 		totTrans = totTrans + trans
