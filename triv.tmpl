@@ -1,0 +1,9 @@
+{{range .Betalningar}}
+<iso20200>
+  <id>{{.Id}}</id>
+  <date>{{.Datum}}</date>
+  <currency>{{.Valuta}}</currency>
+  <countrycode>{{.LandKod}}</countrycode>
+  <amount>{{.Belopp}}</amount>
+</iso20200>
+{{end}}
