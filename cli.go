@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	_ "github.com/confluentinc/confluent-kafka-go/kafka"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
@@ -42,9 +43,14 @@ func main() {
 		FileRender  = "FILERENDER"
 	)
 	renderMode := FileRender
-	var t = template.Must(template.New("").ParseFiles("triv.tmpl"))
+	temp, err := ioutil.ReadFile("triv.tmpl")
+	if err != nil {
+		panic(err)
+	}
+//	var t = template.Must(template.New("bla").ParseGlob("*.tmpl"))
+	var t, _ = template.New("bla").Parse(string(temp))
 
-	const cpuCores int = 24
+	const cpuCores int = 20
 	const cpuCoresPerMonth = cpuCores / 12
 
 	yearDistribution := [12]Monad{{MonadInput: MonadInput{
@@ -105,7 +111,7 @@ func main() {
 	var wgCalc sync.WaitGroup
 
 	for m := 0; m < len(yearDistribution); m++ {
-		trans := yearDistribution[m].MonadInput.MiljonerTransaktioner * 1000
+		trans := yearDistribution[m].MonadInput.MiljonerTransaktioner * 1000000
 		sum := yearDistribution[m].MonadInput.MiljonerSumma
 
 		totTrans = totTrans + trans
@@ -143,7 +149,7 @@ func main() {
 				}
 				yearDistribution[m].CalcResults[j].OutputFile = f
 				wgRender.Add(1)
-				go JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, yearDistribution[m].CalcResults[j], &wgRender)
+				JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, &yearDistribution[m].CalcResults[j], &wgRender)
 			}
 		}
 	}
@@ -158,7 +164,7 @@ func main() {
 				}
 				yearDistribution[m].CalcResults[j].OutputFile = f
 				wgRender.Add(1)
-				go JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, yearDistribution[m].CalcResults[j], &wgRender)
+				JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, &yearDistribution[m].CalcResults[j], &wgRender)
 			}
 		}
 	}
@@ -184,14 +190,15 @@ func skapaBetalningar(core, antal, summa int, betalningarPek *[]Betalning, wg *s
 
 }
 
-func JulleBajsarBetalningar(filen *os.File, t *template.Template, calcResult CalcResult, wg *sync.WaitGroup) {
+func JulleBajsarBetalningar(filen *os.File, t *template.Template, calcResult *CalcResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	t.Execute(filen, calcResult)
+	e := t.Execute(filen, calcResult)
+	if e != nil {
+		log.Println("create file: ", e)
+		return
+	}
 
-	// for _, betalning := range betalningar {
-	//    t.Execute(filen, betalning)
-	// }
 }
 
 func getSliceIndexes(segnr, trans, cores int) (start, stop int) {
