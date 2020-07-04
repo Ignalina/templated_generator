@@ -137,7 +137,7 @@ func main() {
 	wgCalc.Wait()
 
 	elapsed := time.Since(start)
-	fmt.Printf("In memory generated total of %d MILLIARDEN transactions  . Concluding generation Speed %d of Transactions per Second \n", totSum,int32 (float64(totTrans) / elapsed.Seconds()))
+	fmt.Printf("In memory generated total of %d MILLIONEN transactions  . Generation Speed= %d of Transactions per Second \n", totSum,int32 (float64(totTrans) / elapsed.Seconds()))
 
 
 
