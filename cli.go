@@ -43,15 +43,12 @@ func main() {
 		FileRender  = "FILERENDER"
 	)
 	renderMode := FileRender
-	temp, err := ioutil.ReadFile("triv.tmpl")
+	temp, err := ioutil.ReadFile("templates/iso200200/example_camt.053_swedish_account_statement.xml")
 	if err != nil {
 		panic(err)
 	}
-//	var t = template.Must(template.New("bla").ParseGlob("*.tmpl"))
 	var t, _ = template.New("bla").Parse(string(temp))
 
-	const cpuCores int = 20
-	const cpuCoresPerMonth = cpuCores / 12
 
 	yearDistribution := [12]Monad{{MonadInput: MonadInput{
 		MiljonerTransaktioner: 10,
@@ -102,6 +99,9 @@ func main() {
 			MiljonerSumma:         50,
 		}, CalcResults: nil}}
 
+	const cpuCores int = 20
+	cpuCoresPerMonth := calcCoresPerMonad(cpuCores,len(yearDistribution))
+
 	totTrans := int(0)
 	totSum := int(0)
 
@@ -125,7 +125,7 @@ func main() {
 		for j := 0; j < cpuCoresPerMonth; j++ {
 			istart, istop = getSliceIndexes(j, trans, cpuCoresPerMonth)
 			CalcResult2 := CalcResult{
-				Betalningar: BetalningarDennaMonad[istart:istop],
+				Betalningar: BetalningarDennaMonad[istart:istop+1],
 			}
 
 			yearDistribution[m].CalcResults[j] = CalcResult2
@@ -135,21 +135,26 @@ func main() {
 		}
 	}
 	wgCalc.Wait()
-	fmt.Printf("Done tot trans %d totSum", totSum)
+
+	elapsed := time.Since(start)
+	fmt.Printf("In memory generated total of %d MILLIARDEN transactions  . Concluding generation Speed %d of Transactions per Second \n", totSum,int32 (float64(totTrans) / elapsed.Seconds()))
+
+
+
 	// Render out
 	var wgRender sync.WaitGroup
 
 	if renderMode == FileRender {
 		for m := 0; m < len(yearDistribution); m++ {
 			for j := 0; j < cpuCoresPerMonth; j++ {
-				f, err := os.Create("/tmp/output" + strconv.Itoa(m) + "_" + strconv.Itoa(j))
+				f, err := os.Create("/tmp/iso200200" + strconv.Itoa(m) + "_" + strconv.Itoa(j))
 				if err != nil {
 					log.Println("create file: ", err)
 					return
 				}
 				yearDistribution[m].CalcResults[j].OutputFile = f
 				wgRender.Add(1)
-				JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, &yearDistribution[m].CalcResults[j], &wgRender)
+				go JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, &yearDistribution[m].CalcResults[j], &wgRender)
 			}
 		}
 	}
@@ -164,15 +169,20 @@ func main() {
 				}
 				yearDistribution[m].CalcResults[j].OutputFile = f
 				wgRender.Add(1)
-				JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, &yearDistribution[m].CalcResults[j], &wgRender)
+				go JulleBajsarBetalningar(yearDistribution[m].CalcResults[j].OutputFile, t, &yearDistribution[m].CalcResults[j], &wgRender)
 			}
 		}
 	}
 
 	wgRender.Wait()
 	fmt.Printf("totTrans %d", totTrans)
-	elapsed := time.Since(start)
-	log.Printf(" took %s ", elapsed)
+	elapsed2 := time.Since(start)
+
+	fmt.Printf("Transactions per Second %d \n", int32(float64(totTrans) / elapsed2.Seconds()))
+
+
+
+	log.Printf(" took %s to generate ", elapsed2)
 }
 
 func skapaBetalningar(core, antal, summa int, betalningarPek *[]Betalning, wg *sync.WaitGroup) {
@@ -209,4 +219,14 @@ func getSliceIndexes(segnr, trans, cores int) (start, stop int) {
 		stop = trans - 1
 	}
 	return
+}
+
+func calcCoresPerMonad(cpuCores int,monads int) (cores int) {
+	cores = cpuCores / monads
+
+	if (cpuCores % monads) > 0 	{
+		cores++
+		}
+
+	return cores
 }
